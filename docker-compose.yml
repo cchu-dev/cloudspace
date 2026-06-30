@@ -3,6 +3,8 @@ services:
     image: caddy:2-alpine
     init: true
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       cloudspace:
         condition: service_healthy
@@ -24,6 +26,8 @@ services:
     image: cloudspace:local
     init: true
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     expose:
       # Internal only: Caddy reaches this as http://cloudspace:3000.
       - "3000"
@@ -37,12 +41,13 @@ services:
       CLOUDSPACE_ALLOWED_ROOTS: ${CLOUDSPACE_ALLOWED_ROOTS:-/workspace}
       CLOUDSPACE_PUBLIC_BASE_URL: ${CLOUDSPACE_PUBLIC_BASE_URL:-https://${CLOUDSPACE_HOSTNAME:?Set CLOUDSPACE_HOSTNAME to the public hostname, for example cloudspace.example.com}}
       CLOUDSPACE_OAUTH_OWNER_TOKEN: ${CLOUDSPACE_OAUTH_OWNER_TOKEN:?Set CLOUDSPACE_OAUTH_OWNER_TOKEN to a 16+ character secret}
+      CLOUDSPACE_OAUTH_REFRESH_TOKEN_TTL_SECONDS: ${CLOUDSPACE_OAUTH_REFRESH_TOKEN_TTL_SECONDS:-604800}
       CLOUDSPACE_LOG_FORMAT: ${CLOUDSPACE_LOG_FORMAT:-json}
       CLOUDSPACE_LOG_LEVEL: ${CLOUDSPACE_LOG_LEVEL:-info}
       CLOUDSPACE_TRUST_PROXY: ${CLOUDSPACE_TRUST_PROXY:-1}
     volumes:
       - cloudspace-data:/data
-      - ${CLOUDSPACE_WORKSPACE_PATH:-.}:/workspace
+      - ${CLOUDSPACE_WORKSPACE_PATH:?Set CLOUDSPACE_WORKSPACE_PATH to the local directory Cloudspace may expose}:/workspace
     healthcheck:
       test:
         [

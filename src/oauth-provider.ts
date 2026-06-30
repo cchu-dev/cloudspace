@@ -27,6 +27,14 @@ interface AuthorizationCodeRecord {
 }
 
 const CODE_TTL_MS = 5 * 60 * 1000;
+const OWNER_PASSWORD_FAILURE_LIMIT = 5;
+const OWNER_PASSWORD_LOCKOUT_MS = 15 * 60 * 1000;
+
+interface FailedOwnerPasswordAttempt {
+  count: number;
+  firstFailedAtMs: number;
+  lockedUntilMs?: number;
+}
 
 function randomToken(): string {
   return randomBytes(32).toString("base64url");
@@ -107,6 +115,59 @@ ${hiddenFields}
 </html>`;
 }
 
+function setAuthorizationHtmlHeaders(res: Response, status: number): Response {
+  return res
+    .status(status)
+    .setHeader("Content-Type", "text/html; charset=utf-8")
+    .setHeader("Cache-Control", "no-store")
+    .setHeader("Pragma", "no-cache")
+    .setHeader("X-Content-Type-Options", "nosniff")
+    .setHeader("Referrer-Policy", "no-referrer")
+    .setHeader(
+      "Content-Security-Policy",
+      "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+    );
+}
+
+class OwnerPasswordRateLimiter {
+  private readonly attempts = new Map<string, FailedOwnerPasswordAttempt>();
+
+  isLocked(key: string, nowMs = Date.now()): boolean {
+    const attempt = this.attempts.get(key);
+    if (!attempt) return false;
+
+    if (attempt.lockedUntilMs && attempt.lockedUntilMs > nowMs) return true;
+    if (attempt.lockedUntilMs || nowMs - attempt.firstFailedAtMs > OWNER_PASSWORD_LOCKOUT_MS) {
+      this.attempts.delete(key);
+    }
+    return false;
+  }
+
+  retryAfterSeconds(key: string, nowMs = Date.now()): number | undefined {
+    const lockedUntilMs = this.attempts.get(key)?.lockedUntilMs;
+    if (!lockedUntilMs || lockedUntilMs <= nowMs) return undefined;
+    return Math.ceil((lockedUntilMs - nowMs) / 1000);
+  }
+
+  recordFailure(key: string, nowMs = Date.now()): void {
+    const existing = this.attempts.get(key);
+    const attempt =
+      existing && nowMs - existing.firstFailedAtMs <= OWNER_PASSWORD_LOCKOUT_MS
+        ? existing
+        : { count: 0, firstFailedAtMs: nowMs };
+
+    attempt.count += 1;
+    if (attempt.count >= OWNER_PASSWORD_FAILURE_LIMIT) {
+      attempt.lockedUntilMs = nowMs + OWNER_PASSWORD_LOCKOUT_MS;
+    }
+    this.attempts.set(key, attempt);
+  }
+
+  recordSuccess(key: string): void {
+    this.attempts.delete(key);
+  }
+}
+
 function requestedScopesAllowed(requested: string[], supported: string[]): boolean {
   return requested.every((scope) => supported.includes(scope));
 }
@@ -114,6 +175,7 @@ function requestedScopesAllowed(requested: string[], supported: string[]): boole
 export class SingleUserOAuthProvider implements OAuthServerProvider {
   readonly clientsStore: OAuthRegisteredClientsStore;
   private readonly codes = new Map<string, AuthorizationCodeRecord>();
+  private readonly ownerPasswordRateLimiter = new OwnerPasswordRateLimiter();
   private readonly oauthStore: SqliteOAuthStore;
   private readonly resourceServerUrl: URL;
 
@@ -140,7 +202,7 @@ export class SingleUserOAuthProvider implements OAuthServerProvider {
     }
 
     if (res.req.method !== "POST") {
-      res.status(200).setHeader("Content-Type", "text/html; charset=utf-8");
+      setAuthorizationHtmlHeaders(res, 200);
       res.send(
         formHtml({
           clientName: client.client_name ?? client.client_id,
@@ -152,9 +214,29 @@ export class SingleUserOAuthProvider implements OAuthServerProvider {
       return;
     }
 
+    const rateLimitKey = ownerPasswordRateLimitKey(res, params);
+    if (this.ownerPasswordRateLimiter.isLocked(rateLimitKey)) {
+      const retryAfterSeconds = this.ownerPasswordRateLimiter.retryAfterSeconds(rateLimitKey);
+      if (retryAfterSeconds !== undefined) {
+        res.setHeader("Retry-After", String(retryAfterSeconds));
+      }
+      setAuthorizationHtmlHeaders(res, 429);
+      res.send(
+        formHtml({
+          error: "Too many failed attempts. Try again later.",
+          clientName: client.client_name ?? client.client_id,
+          scopes: params.scopes ?? this.config.scopes,
+          resource: params.resource,
+          fields: authorizationFormFields(client, params),
+        }),
+      );
+      return;
+    }
+
     const providedToken = String(res.req.body?.owner_token ?? "");
     if (!safeEquals(providedToken, this.config.ownerToken)) {
-      res.status(401).setHeader("Content-Type", "text/html; charset=utf-8");
+      this.ownerPasswordRateLimiter.recordFailure(rateLimitKey);
+      setAuthorizationHtmlHeaders(res, 401);
       res.send(
         formHtml({
           error: "The Owner password was not accepted.",
@@ -166,6 +248,7 @@ export class SingleUserOAuthProvider implements OAuthServerProvider {
       );
       return;
     }
+    this.ownerPasswordRateLimiter.recordSuccess(rateLimitKey);
 
     const code = `code-${randomUUID()}`;
     this.codes.set(code, {
@@ -314,6 +397,11 @@ export class SingleUserOAuthProvider implements OAuthServerProvider {
       scope: scopes.join(" "),
     };
   }
+}
+
+function ownerPasswordRateLimitKey(res: Response, params: AuthorizationParams): string {
+  const ip = res.req.ip ?? res.req.socket.remoteAddress ?? "unknown";
+  return `${ip}|${params.resource?.href ?? "unknown-resource"}`;
 }
 
 function authorizationFormFields(

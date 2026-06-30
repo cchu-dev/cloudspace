@@ -83,6 +83,7 @@ Build and run Cloudspace behind Caddy with Docker Compose:
 ```bash
 export CLOUDSPACE_HOSTNAME="cloudspace.example.com"
 export CLOUDSPACE_OAUTH_OWNER_TOKEN="$(openssl rand -base64 32)"
+export CLOUDSPACE_WORKSPACE_PATH="$HOME/projects"
 docker compose up --build
 ```
 
@@ -103,12 +104,20 @@ export CLOUDSPACE_PUBLIC_BASE_URL="https://your-public-host.example.com"
 docker compose up --build
 ```
 
-By default, Compose mounts the current repository at `/workspace` and allows
-Cloudspace to open that path. To expose a different local folder, set:
+Compose requires `CLOUDSPACE_WORKSPACE_PATH` so public deployments explicitly
+choose the local folder mounted at `/workspace`. To expose a different local
+folder, set:
 
 ```bash
 export CLOUDSPACE_WORKSPACE_PATH="$HOME/projects"
 export CLOUDSPACE_ALLOWED_ROOTS="/workspace"
+docker compose up --build
+```
+
+Docker Compose defaults refresh tokens to 7 days. Override this when needed:
+
+```bash
+export CLOUDSPACE_OAUTH_REFRESH_TOKEN_TTL_SECONDS="2592000"
 docker compose up --build
 ```
 

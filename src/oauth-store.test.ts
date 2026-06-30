@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { Response } from "express";
 import { InvalidGrantError, InvalidTokenError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
 import { databasePath, openDatabase } from "./db/client.js";
 import { SingleUserOAuthProvider } from "./oauth-provider.js";
@@ -25,6 +26,7 @@ try {
   testExpiredTokenCleanup(join(root, "expiration"));
   testTransactionalTokenRotation(join(root, "rotation"));
   await testProviderRestartRotationAndRevocation(join(root, "provider"));
+  await testOwnerPasswordRateLimit(join(root, "owner-password-rate-limit"));
 } finally {
   await rm(root, { recursive: true, force: true });
 }
@@ -241,6 +243,113 @@ async function testProviderRestartRotationAndRevocation(stateDir: string): Promi
   } finally {
     secondProvider.close();
   }
+}
+
+async function testOwnerPasswordRateLimit(stateDir: string): Promise<void> {
+  const provider = new SingleUserOAuthProvider(oauthConfig, mcpUrl, stateDir);
+  const client = await provider.clientsStore.registerClient?.({
+    redirect_uris: [redirectUri],
+    client_name: "ChatGPT",
+  });
+  assert.ok(client);
+
+  const params = {
+    redirectUri,
+    codeChallenge: "challenge",
+    scopes: ["cloudspace"],
+    resource: mcpUrl,
+  };
+
+  try {
+    const getResponse = createAuthorizationResponse("GET", {}, "203.0.113.10");
+    await provider.authorize(client, params, getResponse.response);
+    assert.equal(getResponse.statusCode, 200);
+    assert.equal(getResponse.headers["cache-control"], "no-store");
+    assert.match(String(getResponse.headers["content-security-policy"]), /frame-ancestors 'none'/);
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const badResponse = createAuthorizationResponse(
+        "POST",
+        { owner_token: "wrong-owner-password" },
+        "203.0.113.10",
+      );
+      await provider.authorize(client, params, badResponse.response);
+      assert.equal(badResponse.statusCode, 401);
+    }
+
+    const lockedResponse = createAuthorizationResponse(
+      "POST",
+      { owner_token: "wrong-owner-password" },
+      "203.0.113.10",
+    );
+    await provider.authorize(client, params, lockedResponse.response);
+    assert.equal(lockedResponse.statusCode, 429);
+    assert.ok(lockedResponse.headers["retry-after"]);
+
+    const otherIpResponse = createAuthorizationResponse(
+      "POST",
+      { owner_token: oauthConfig.ownerToken },
+      "203.0.113.11",
+    );
+    await provider.authorize(client, params, otherIpResponse.response);
+    assert.equal(otherIpResponse.statusCode, 302);
+  } finally {
+    provider.close();
+  }
+}
+
+function createAuthorizationResponse(
+  method: "GET" | "POST",
+  body: Record<string, string>,
+  ip: string,
+): {
+  response: Response;
+  statusCode?: number;
+  headers: Record<string, string | number | readonly string[]>;
+  body?: string;
+  redirectUrl?: string;
+} {
+  const result: {
+    response?: Response;
+    statusCode?: number;
+    headers: Record<string, string | number | readonly string[]>;
+    body?: string;
+    redirectUrl?: string;
+  } = { headers: {} };
+
+  result.response = {
+    req: {
+      method,
+      body,
+      ip,
+      socket: { remoteAddress: ip },
+    },
+    status(statusCode: number) {
+      result.statusCode = statusCode;
+      return this;
+    },
+    setHeader(name: string, value: string | number | readonly string[]) {
+      result.headers[name.toLowerCase()] = value;
+      return this;
+    },
+    send(bodyText: string) {
+      result.body = bodyText;
+      return this;
+    },
+    redirect(statusCode: number, url: string) {
+      result.statusCode = statusCode;
+      result.redirectUrl = url;
+      return this;
+    },
+  } as unknown as Response;
+
+  return result as {
+    response: Response;
+    statusCode?: number;
+    headers: Record<string, string | number | readonly string[]>;
+    body?: string;
+    redirectUrl?: string;
+  };
 }
 
 function hashToken(token: string): string {
