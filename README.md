@@ -125,6 +125,46 @@ https://your-tunnel-host.example.com/mcp
 > Used normally, you're fine. (Based on OpenAI's Usage Policies and Service Terms
 > as of June 2026.)
 
+## Docker
+
+Build and run DevSpace locally with Docker Compose:
+
+```bash
+export DEVSPACE_OAUTH_OWNER_TOKEN="$(openssl rand -base64 32)"
+docker compose up --build
+```
+
+The container listens on port `3000` and Compose publishes it at:
+
+```text
+http://localhost:3000/mcp
+```
+
+By default, Compose mounts the current repository at `/workspace` and allows
+DevSpace to open that path. To expose a different local folder, set:
+
+```bash
+export DEVSPACE_WORKSPACE_PATH="$HOME/projects"
+export DEVSPACE_ALLOWED_ROOTS="/workspace"
+docker compose up --build
+```
+
+For tunnel or public deployments, set the public origin without `/mcp`:
+
+```bash
+export DEVSPACE_PUBLIC_BASE_URL="https://your-tunnel-host.example.com"
+docker compose up --build
+```
+
+Persistent container data is stored in the named `devspace-data` volume:
+
+- `/data/config` for DevSpace config and auth files
+- `/data/state` for SQLite state
+- `/data/worktrees` for managed Git worktrees
+
+The image also declares `/workspace` as a volume for project files. Health
+checks call `http://127.0.0.1:3000/healthz`.
+
 ## What ChatGPT Can Do
 
 Once connected, ChatGPT can open one of your approved project folders as a

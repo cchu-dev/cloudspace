@@ -1,0 +1,39 @@
+services:
+  devspace:
+    build:
+      context: .
+    image: devspace:local
+    init: true
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      DEVSPACE_CONFIG_DIR: /data/config
+      DEVSPACE_STATE_DIR: /data/state
+      DEVSPACE_WORKTREE_ROOT: /data/worktrees
+      DEVSPACE_ALLOWED_ROOTS: ${DEVSPACE_ALLOWED_ROOTS:-/workspace}
+      DEVSPACE_PUBLIC_BASE_URL: ${DEVSPACE_PUBLIC_BASE_URL:-http://localhost:3000}
+      DEVSPACE_OAUTH_OWNER_TOKEN: ${DEVSPACE_OAUTH_OWNER_TOKEN:?Set DEVSPACE_OAUTH_OWNER_TOKEN to a 16+ character secret}
+      DEVSPACE_LOG_FORMAT: ${DEVSPACE_LOG_FORMAT:-json}
+      DEVSPACE_LOG_LEVEL: ${DEVSPACE_LOG_LEVEL:-info}
+    volumes:
+      - devspace-data:/data
+      - ${DEVSPACE_WORKSPACE_PATH:-.}:/workspace
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/healthz').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  devspace-data:
