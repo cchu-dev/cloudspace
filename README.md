@@ -1,59 +1,10 @@
-<p align="center">
-  <picture>
-    <img src="https://raw.githubusercontent.com/Waishnav/cloudspace/main/docs/assets/cloudspace-logo-light.png" alt="Cloudspace logo" width="140">
-  </picture>
-</p>
-
 <h1 align="center">Cloudspace</h1>
 
 <p align="center">Bring a Codex-style coding workflow to ChatGPT.</p>
 
-<p align="center">
-  <a href="https://www.npmjs.com/package/@waishnav/cloudspace"><img alt="npm" src="https://img.shields.io/npm/v/%40waishnav%2Fcloudspace?style=flat-square" /></a>
-  <a href="https://github.com/Waishnav/cloudspace/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Waishnav/cloudspace/ci.yml?style=flat-square&branch=main" /></a>
-  <a href="https://github.com/Waishnav/cloudspace/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/npm/l/%40waishnav%2Fcloudspace?style=flat-square" /></a>
-</p>
-
-[![Cloudspace connected to ChatGPT](https://raw.githubusercontent.com/Waishnav/cloudspace/main/docs/assets/cloudspace-screenshot.png)](https://raw.githubusercontent.com/Waishnav/cloudspace/main/docs/assets/cloudspace-screenshot.png)
-
 **Give ChatGPT a secure connection to your own machine and Turn ChatGPT into Codex**
 
 Cloudspace is a self-hosted MCP server that lets ChatGPT read, edit, search, and run code in your real local projects — your files, your tools, your terminal — without uploading anything to a third party. You run it on your machine, expose it through a tunnel you control, and approve the connection with a password only you have.
-
-## Sponsors and Special Thanks
-
-<table>
-  <thead>
-    <tr>
-      <th>Sponsor</th>
-      <th>About</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td align="center" width="220">
-        <a href="https://rebates.ai/">
-          <img
-            src="https://app.rebates.ai/brand/rebates-lockup.svg"
-            alt="Rebates"
-            width="170"
-          >
-        </a>
-      </td>
-      <td>
-        <strong>The ads in your terminal pay you.</strong><br><br>
-        <a href="https://rebates.ai/">Rebates</a> adds one optional
-        sponsored footer to your coding agent and pays you cash back for every
-        session in which it is shown. Turn it off at any time.
-      </td>
-    </tr>
-  </tbody>
-</table>
-
-<p>
-  Cloudspace is open to new sponsors.
-  <a href="https://x.com/wshxnv">Get in touch to become one.</a>
-</p>
 
 ## Installation
 
@@ -62,7 +13,7 @@ Cloudspace requires Node `>=22.19 <27`.
 Install the Cloudspace CLI:
 
 ```bash
-npm install -g @waishnav/cloudspace
+npm install -g cloudspace
 ```
 
 Then initialize and start the server:
@@ -75,8 +26,8 @@ cloudspace serve
 Or run it without a global install:
 
 ```bash
-npx @waishnav/cloudspace init
-npx @waishnav/cloudspace serve
+npx cloudspace init
+npx cloudspace serve
 ```
 
 During setup, Cloudspace asks for:
@@ -217,11 +168,11 @@ cloudspace doctor
 
 ## Documentation
 
-- [Setup Guide](https://github.com/Waishnav/cloudspace/blob/main/docs/setup.md)
-- [ChatGPT Coding Workflow](https://github.com/Waishnav/cloudspace/blob/main/docs/chatgpt-coding-workflow.md)
-- [Configuration Reference](https://github.com/Waishnav/cloudspace/blob/main/docs/configuration.md)
-- [Security Model](https://github.com/Waishnav/cloudspace/blob/main/docs/security.md)
-- [Troubleshooting Gotchas](https://github.com/Waishnav/cloudspace/blob/main/docs/gotchas.md)
+- [Setup Guide](docs/setup.md)
+- [ChatGPT Coding Workflow](docs/chatgpt-coding-workflow.md)
+- [Configuration Reference](docs/configuration.md)
+- [Security Model](docs/security.md)
+- [Troubleshooting Gotchas](docs/gotchas.md)
 
 ## Philosophy
 
@@ -238,43 +189,9 @@ Cloudspace is one attempt to fast-forward that future: a way for MCP-capable
 hosts like ChatGPT and Claude to work directly with local project files through
 explicit, inspectable tools.
 
-## Built by Waishnav
+## Attribution
 
-I'm Waishnav, I like building opinionated products and tools, and Cloudspace is one example of that.
-This year, I started my journey to build a single-person and multiple-agents company doing multiple millions in
-revenue. If you want to watch the failures, wins, lessons, and everything in
-between, come hang out with me on [X](https://x.com/wshxnv).
-
-## More from me
-
-<table>
-  <thead>
-    <tr>
-      <th>Project</th>
-      <th>About</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td align="center" width="220">
-        <a href="https://gitcms.dev/">
-          <img
-            src="https://gitcms.dev/brand/gitcms-logo.svg"
-            alt="GitCMS"
-            width="48"
-          /><br />
-          <strong>GitCMS</strong>
-        </a>
-      </td>
-      <td>
-        <strong>Modern CMS and tooling for markdown based content sites — built for agents and humans.</strong><br><br>
-        Visual editing, editorial workflow, and ChatGPT/Claude content agents, with
-        every post and page stored as files in your repo.
-        <a href="https://gitcms.dev/">Learn more</a>.
-      </td>
-    </tr>
-  </tbody>
-</table>
+Cloudspace is forked from Waishnav/devspace and remains available under the MIT license. The original copyright notice is preserved in [LICENSE](LICENSE).
 
 ## Local Development
 

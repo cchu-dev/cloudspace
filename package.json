@@ -1,5 +1,5 @@
 {
-  "name": "@waishnav/cloudspace",
+  "name": "cloudspace",
   "version": "1.0.3",
   "description": "Expose a secure local coding workspace through an MCP server.",
   "type": "module",

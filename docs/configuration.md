@@ -13,17 +13,17 @@ The default files are:
 Use another config directory with:
 
 ```bash
-CLOUDSPACE_CONFIG_DIR=/path/to/config npx @waishnav/cloudspace serve
+CLOUDSPACE_CONFIG_DIR=/path/to/config npx cloudspace serve
 ```
 
 ## Commands
 
 ```bash
-npx @waishnav/cloudspace init
-npx @waishnav/cloudspace serve
-npx @waishnav/cloudspace doctor
-npx @waishnav/cloudspace config get
-npx @waishnav/cloudspace config set publicBaseUrl https://cloudspace.example.com
+npx cloudspace init
+npx cloudspace serve
+npx cloudspace doctor
+npx cloudspace config get
+npx cloudspace config set publicBaseUrl https://cloudspace.example.com
 ```
 
 ## Core Environment Variables
@@ -118,7 +118,7 @@ Example:
 
 ```bash
 CLOUDSPACE_SKILL_PATHS="$HOME/.claude/skills,$HOME/company/skills" \
-npx @waishnav/cloudspace serve
+npx cloudspace serve
 ```
 
 ## Logging
@@ -148,7 +148,7 @@ CLOUDSPACE_WORKTREE_ROOT="$HOME/.cloudspace/worktrees" \
 CLOUDSPACE_TOOL_MODE="minimal" \
 CLOUDSPACE_TOOL_NAMING="short" \
 CLOUDSPACE_WIDGETS="full" \
-npx @waishnav/cloudspace serve
+npx cloudspace serve
 ```
 
 The environment assignments must be part of the same command invocation, or

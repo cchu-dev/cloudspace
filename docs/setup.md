@@ -19,7 +19,7 @@ ngrok, Pinggy, Tailscale Funnel, or your own HTTPS reverse proxy.
 Run:
 
 ```bash
-npx @waishnav/cloudspace init
+npx cloudspace init
 ```
 
 The setup flow asks one question at a time.
@@ -79,20 +79,20 @@ https://your-tunnel-host.example.com/mcp
 Run:
 
 ```bash
-npx @waishnav/cloudspace serve
+npx cloudspace serve
 ```
 
 If your tunnel URL changes for one run, override it without rewriting config:
 
 ```bash
-CLOUDSPACE_PUBLIC_BASE_URL="https://new-tunnel.example.com" npx @waishnav/cloudspace serve
+CLOUDSPACE_PUBLIC_BASE_URL="https://new-tunnel.example.com" npx cloudspace serve
 ```
 
 For a stable public URL, persist it:
 
 ```bash
-npx @waishnav/cloudspace config set publicBaseUrl https://cloudspace.example.com
-npx @waishnav/cloudspace serve
+npx cloudspace config set publicBaseUrl https://cloudspace.example.com
+npx cloudspace serve
 ```
 
 ## Approve The Client
@@ -114,7 +114,7 @@ Keep `auth.json` private.
 Run:
 
 ```bash
-npx @waishnav/cloudspace doctor
+npx cloudspace doctor
 ```
 
 The doctor command reports the resolved config, Node version, Node ABI, platform,

@@ -7,8 +7,8 @@ This page collects the setup issues users are most likely to hit.
 Use `npx`:
 
 ```bash
-npx @waishnav/cloudspace init
-npx @waishnav/cloudspace serve
+npx cloudspace init
+npx cloudspace serve
 ```
 
 If you installed globally, confirm npm's global bin directory is on `PATH`.
@@ -40,7 +40,7 @@ npm rebuild better-sqlite3
 Then run:
 
 ```bash
-npx @waishnav/cloudspace doctor
+npx cloudspace doctor
 ```
 
 Release starts run a native dependency check before launching.
@@ -62,7 +62,7 @@ https://your-tunnel-host.example.com/mcp
 If you saved the wrong value:
 
 ```bash
-npx @waishnav/cloudspace config set publicBaseUrl https://your-tunnel-host.example.com
+npx cloudspace config set publicBaseUrl https://your-tunnel-host.example.com
 ```
 
 ## Tunnel URL Changed
@@ -72,13 +72,13 @@ Temporary tunnels often change URLs between runs.
 For a one-off run:
 
 ```bash
-CLOUDSPACE_PUBLIC_BASE_URL="https://new-tunnel.example.com" npx @waishnav/cloudspace serve
+CLOUDSPACE_PUBLIC_BASE_URL="https://new-tunnel.example.com" npx cloudspace serve
 ```
 
 For a stable URL:
 
 ```bash
-npx @waishnav/cloudspace config set publicBaseUrl https://cloudspace.example.com
+npx cloudspace config set publicBaseUrl https://cloudspace.example.com
 ```
 
 ## Host Header Or 403 Problems
@@ -88,7 +88,7 @@ Cloudspace derives allowed hosts from the configured public URL.
 Run:
 
 ```bash
-npx @waishnav/cloudspace doctor
+npx cloudspace doctor
 ```
 
 Confirm the public URL hostname appears in allowed hosts. If you changed tunnel
@@ -97,7 +97,7 @@ URLs, update `publicBaseUrl`.
 Use this only for intentional local debugging:
 
 ```bash
-CLOUDSPACE_ALLOWED_HOSTS="*" npx @waishnav/cloudspace serve
+CLOUDSPACE_ALLOWED_HOSTS="*" npx cloudspace serve
 ```
 
 ## OAuth Redirect Host Rejected
@@ -113,7 +113,7 @@ localhost
 If another MCP client uses a different redirect host, configure:
 
 ```bash
-CLOUDSPACE_OAUTH_ALLOWED_REDIRECT_HOSTS="chatgpt.com,example.com" npx @waishnav/cloudspace serve
+CLOUDSPACE_OAUTH_ALLOWED_REDIRECT_HOSTS="chatgpt.com,example.com" npx cloudspace serve
 ```
 
 ## Owner Password Not Accepted
@@ -127,7 +127,7 @@ Make sure you are entering the Owner password from:
 To regenerate setup:
 
 ```bash
-npx @waishnav/cloudspace init --force
+npx cloudspace init --force
 ```
 
 ## Unknown `workspaceId`
@@ -146,13 +146,13 @@ The path must be inside one of the allowed roots configured during setup.
 Run:
 
 ```bash
-npx @waishnav/cloudspace config get
+npx cloudspace config get
 ```
 
 Then either open a project under an allowed root or rerun setup:
 
 ```bash
-npx @waishnav/cloudspace init --force
+npx cloudspace init --force
 ```
 
 ## Worktree Mode Fails
@@ -180,7 +180,7 @@ Install Git for Windows and use Git Bash, or use WSL, MSYS2, or Cygwin Bash.
 Run:
 
 ```bash
-npx @waishnav/cloudspace doctor
+npx cloudspace doctor
 ```
 
 Confirm Bash is detected.
@@ -190,7 +190,7 @@ Confirm Bash is detected.
 Skills are enabled by default. Check:
 
 ```bash
-CLOUDSPACE_SKILLS=1 npx @waishnav/cloudspace serve
+CLOUDSPACE_SKILLS=1 npx cloudspace serve
 ```
 
 Cloudspace looks in standard Agent Skills locations:
