@@ -9,7 +9,7 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { expandHomePath } from "./roots.js";
 
-export interface DevspaceUserConfig {
+export interface CloudspaceUserConfig {
   host?: string;
   port?: number;
   allowedRoots?: string[];
@@ -20,34 +20,34 @@ export interface DevspaceUserConfig {
   agentDir?: string;
 }
 
-export interface DevspaceAuthConfig {
+export interface CloudspaceAuthConfig {
   ownerToken?: string;
 }
 
-export interface DevspaceFiles {
+export interface CloudspaceFiles {
   dir: string;
   configPath: string;
   authPath: string;
   configExists: boolean;
   authExists: boolean;
-  config: DevspaceUserConfig;
-  auth: DevspaceAuthConfig;
+  config: CloudspaceUserConfig;
+  auth: CloudspaceAuthConfig;
 }
 
-export function devspaceConfigDir(env: NodeJS.ProcessEnv = process.env): string {
-  return resolve(expandHomePath(env.DEVSPACE_CONFIG_DIR ?? join(homedir(), ".devspace")));
+export function cloudspaceConfigDir(env: NodeJS.ProcessEnv = process.env): string {
+  return resolve(expandHomePath(env.CLOUDSPACE_CONFIG_DIR ?? join(homedir(), ".cloudspace")));
 }
 
-export function devspaceConfigPath(env: NodeJS.ProcessEnv = process.env): string {
-  return join(devspaceConfigDir(env), "config.json");
+export function cloudspaceConfigPath(env: NodeJS.ProcessEnv = process.env): string {
+  return join(cloudspaceConfigDir(env), "config.json");
 }
 
-export function devspaceAuthPath(env: NodeJS.ProcessEnv = process.env): string {
-  return join(devspaceConfigDir(env), "auth.json");
+export function cloudspaceAuthPath(env: NodeJS.ProcessEnv = process.env): string {
+  return join(cloudspaceConfigDir(env), "auth.json");
 }
 
-export function loadDevspaceFiles(env: NodeJS.ProcessEnv = process.env): DevspaceFiles {
-  const dir = devspaceConfigDir(env);
+export function loadCloudspaceFiles(env: NodeJS.ProcessEnv = process.env): CloudspaceFiles {
+  const dir = cloudspaceConfigDir(env);
   const configPath = join(dir, "config.json");
   const authPath = join(dir, "auth.json");
   const configExists = existsSync(configPath);
@@ -59,27 +59,27 @@ export function loadDevspaceFiles(env: NodeJS.ProcessEnv = process.env): Devspac
     authPath,
     configExists,
     authExists,
-    config: configExists ? readJsonFile<DevspaceUserConfig>(configPath) : {},
-    auth: authExists ? readJsonFile<DevspaceAuthConfig>(authPath) : {},
+    config: configExists ? readJsonFile<CloudspaceUserConfig>(configPath) : {},
+    auth: authExists ? readJsonFile<CloudspaceAuthConfig>(authPath) : {},
   };
 }
 
-export function writeDevspaceConfig(
-  config: DevspaceUserConfig,
+export function writeCloudspaceConfig(
+  config: CloudspaceUserConfig,
   env: NodeJS.ProcessEnv = process.env,
 ): string {
-  const filePath = devspaceConfigPath(env);
-  mkdirSync(devspaceConfigDir(env), { recursive: true });
+  const filePath = cloudspaceConfigPath(env);
+  mkdirSync(cloudspaceConfigDir(env), { recursive: true });
   writeJsonFile(filePath, config, 0o600);
   return filePath;
 }
 
-export function writeDevspaceAuth(
-  auth: DevspaceAuthConfig,
+export function writeCloudspaceAuth(
+  auth: CloudspaceAuthConfig,
   env: NodeJS.ProcessEnv = process.env,
 ): string {
-  const filePath = devspaceAuthPath(env);
-  mkdirSync(devspaceConfigDir(env), { recursive: true });
+  const filePath = cloudspaceAuthPath(env);
+  mkdirSync(cloudspaceConfigDir(env), { recursive: true });
   writeJsonFile(filePath, auth, 0o600);
   return filePath;
 }

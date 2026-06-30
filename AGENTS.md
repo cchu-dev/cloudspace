@@ -9,7 +9,7 @@ should call tools that read files, edit files, search code, and run shell
 commands directly against approved local project roots.
 
 Pi's SDK is currently used as the backend adapter for mature local coding
-primitives such as read, edit, write, grep, find, ls, and bash. DevSpace wraps
+primitives such as read, edit, write, grep, find, ls, and bash. Cloudspace wraps
 those primitives behind a remote Streamable HTTP MCP interface, suitable for use
 through a Cloudflare Tunnel.
 

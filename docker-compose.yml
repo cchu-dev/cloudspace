@@ -1,8 +1,8 @@
 services:
-  devspace:
+  cloudspace:
     build:
       context: .
-    image: devspace:local
+    image: cloudspace:local
     init: true
     restart: unless-stopped
     ports:
@@ -11,17 +11,17 @@ services:
       NODE_ENV: production
       HOST: 0.0.0.0
       PORT: 3000
-      DEVSPACE_CONFIG_DIR: /data/config
-      DEVSPACE_STATE_DIR: /data/state
-      DEVSPACE_WORKTREE_ROOT: /data/worktrees
-      DEVSPACE_ALLOWED_ROOTS: ${DEVSPACE_ALLOWED_ROOTS:-/workspace}
-      DEVSPACE_PUBLIC_BASE_URL: ${DEVSPACE_PUBLIC_BASE_URL:-http://localhost:3000}
-      DEVSPACE_OAUTH_OWNER_TOKEN: ${DEVSPACE_OAUTH_OWNER_TOKEN:?Set DEVSPACE_OAUTH_OWNER_TOKEN to a 16+ character secret}
-      DEVSPACE_LOG_FORMAT: ${DEVSPACE_LOG_FORMAT:-json}
-      DEVSPACE_LOG_LEVEL: ${DEVSPACE_LOG_LEVEL:-info}
+      CLOUDSPACE_CONFIG_DIR: /data/config
+      CLOUDSPACE_STATE_DIR: /data/state
+      CLOUDSPACE_WORKTREE_ROOT: /data/worktrees
+      CLOUDSPACE_ALLOWED_ROOTS: ${CLOUDSPACE_ALLOWED_ROOTS:-/workspace}
+      CLOUDSPACE_PUBLIC_BASE_URL: ${CLOUDSPACE_PUBLIC_BASE_URL:-http://localhost:3000}
+      CLOUDSPACE_OAUTH_OWNER_TOKEN: ${CLOUDSPACE_OAUTH_OWNER_TOKEN:?Set CLOUDSPACE_OAUTH_OWNER_TOKEN to a 16+ character secret}
+      CLOUDSPACE_LOG_FORMAT: ${CLOUDSPACE_LOG_FORMAT:-json}
+      CLOUDSPACE_LOG_LEVEL: ${CLOUDSPACE_LOG_LEVEL:-info}
     volumes:
-      - devspace-data:/data
-      - ${DEVSPACE_WORKSPACE_PATH:-.}:/workspace
+      - cloudspace-data:/data
+      - ${CLOUDSPACE_WORKSPACE_PATH:-.}:/workspace
     healthcheck:
       test:
         [
@@ -36,4 +36,4 @@ services:
       retries: 3
 
 volumes:
-  devspace-data:
+  cloudspace-data:

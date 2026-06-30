@@ -30,11 +30,11 @@ FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production \
   HOST=0.0.0.0 \
   PORT=3000 \
-  DEVSPACE_CONFIG_DIR=/data/config \
-  DEVSPACE_STATE_DIR=/data/state \
-  DEVSPACE_WORKTREE_ROOT=/data/worktrees \
-  DEVSPACE_ALLOWED_ROOTS=/workspace \
-  DEVSPACE_PUBLIC_BASE_URL=http://localhost:3000
+  CLOUDSPACE_CONFIG_DIR=/data/config \
+  CLOUDSPACE_STATE_DIR=/data/state \
+  CLOUDSPACE_WORKTREE_ROOT=/data/worktrees \
+  CLOUDSPACE_ALLOWED_ROOTS=/workspace \
+  CLOUDSPACE_PUBLIC_BASE_URL=http://localhost:3000
 
 WORKDIR /app
 

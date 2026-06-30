@@ -1,8 +1,8 @@
-# DevSpace Architecture
+# Cloudspace Architecture
 
-DevSpace is a Node.js/TypeScript MCP server that exposes selected local
+Cloudspace is a Node.js/TypeScript MCP server that exposes selected local
 development directories to MCP-capable clients. It is packaged as a CLI
-(`devspace`) and runs an Express-based Streamable HTTP MCP endpoint protected by
+(`cloudspace`) and runs an Express-based Streamable HTTP MCP endpoint protected by
 a single-user OAuth flow.
 
 The core design is intentionally small:
@@ -32,7 +32,7 @@ Runtime layers:
    discovers instructions and skills.
 6. Tool layer (`src/server.ts`, `src/pi-tools.ts`, `src/apply-patch.ts`,
    `src/process-sessions.ts`, `src/review-checkpoints.ts`) registers MCP tools
-   and delegates implementation to either Pi SDK primitives or DevSpace-native
+   and delegates implementation to either Pi SDK primitives or Cloudspace-native
    helpers.
 7. State layer (`src/db/*`) stores workspace sessions, OAuth clients, and token
    hashes in SQLite.
@@ -42,7 +42,7 @@ Runtime layers:
 ## Module Responsibilities
 
 `src/cli.ts`
-: Entrypoint for the published `devspace` binary. It validates Node support,
+: Entrypoint for the published `cloudspace` binary. It validates Node support,
   bootstraps config when needed, runs setup prompts, prints diagnostics, starts
   the server, and shuts it down on signals.
 
@@ -52,8 +52,8 @@ Runtime layers:
   tool mode, tool naming, widgets, state directories, skill paths, and logging.
 
 `src/user-config.ts`
-: Reads and writes `~/.devspace/config.json` and `~/.devspace/auth.json`
-  (or `DEVSPACE_CONFIG_DIR`). It also generates the Owner password.
+: Reads and writes `~/.cloudspace/config.json` and `~/.cloudspace/auth.json`
+  (or `CLOUDSPACE_CONFIG_DIR`). It also generates the Owner password.
 
 `src/server.ts`
 : Main composition root. It creates the Express app, registers OAuth metadata
@@ -83,7 +83,7 @@ Runtime layers:
   paths outside configured allowlists.
 
 `src/git-worktrees.ts`
-: Creates managed detached Git worktrees under `DEVSPACE_WORKTREE_ROOT`. It
+: Creates managed detached Git worktrees under `CLOUDSPACE_WORKTREE_ROOT`. It
   validates the source path, Git root, base ref, and generated worktree path.
 
 `src/pi-tools.ts`
@@ -92,18 +92,18 @@ Runtime layers:
   before invoking Pi primitives.
 
 `src/apply-patch.ts`
-: DevSpace-native Codex-style patch parser and applier used in `codex` tool
+: Cloudspace-native Codex-style patch parser and applier used in `codex` tool
   mode. It confines paths to the workspace, rejects binary/non-UTF-8 files, and
   emits unified patch metadata for UI cards.
 
 `src/process-sessions.ts` and `src/process-platform.ts`
-: DevSpace-native command/session implementation for `codex` mode. It supports
+: Cloudspace-native command/session implementation for `codex` mode. It supports
   non-PTY and optional PTY execution, polling, stdin writes, output truncation,
   process-tree termination, and process ownership by `workspaceId`.
 
 `src/review-checkpoints.ts` and `src/git.ts`
 : Implements `show_changes` when widget mode is `changes`. It snapshots a Git
-  working tree into temporary commits under `refs/devspace/review/*`, diffs
+  working tree into temporary commits under `refs/cloudspace/review/*`, diffs
   against the last checkpoint, and optionally advances the checkpoint.
 
 `src/skills.ts`
@@ -112,7 +112,7 @@ Runtime layers:
 
 `src/db/client.ts`, `src/db/migrations.ts`, `src/db/schema.ts`
 : SQLite setup, migrations, and Drizzle schema. The database file is
-  `devspace.sqlite` under `stateDir`.
+  `cloudspace.sqlite` under `stateDir`.
 
 `src/logger.ts`
 : Structured request/tool logging with JSON or pretty output. Shell command
@@ -134,7 +134,7 @@ Runtime layers:
 
 Initial client connection:
 
-1. User runs `devspace serve`.
+1. User runs `cloudspace serve`.
 2. CLI loads `ServerConfig`, creates the Express/MCP server, and listens on
    `host:port`.
 3. MCP client discovers OAuth metadata under:
@@ -142,18 +142,18 @@ Initial client connection:
    - `/.well-known/oauth-authorization-server`
 4. Client dynamically registers through the MCP SDK auth router. Redirect URIs
    must use allowed redirect hosts.
-5. Client opens the authorization URL. DevSpace renders an Owner-password form.
+5. Client opens the authorization URL. Cloudspace renders an Owner-password form.
 6. User enters the Owner password from `auth.json` or
-   `DEVSPACE_OAUTH_OWNER_TOKEN`.
-7. DevSpace issues a short-lived authorization code, then access and refresh
+   `CLOUDSPACE_OAUTH_OWNER_TOKEN`.
+7. Cloudspace issues a short-lived authorization code, then access and refresh
    tokens. Only token hashes are stored.
 
 MCP session flow:
 
 1. Client sends an initialize request to `/mcp` with a bearer token.
 2. `requireBearerAuth` verifies the token and required scope.
-3. DevSpace verifies the token resource matches the configured MCP resource.
-4. For initialize requests without an existing MCP session ID, DevSpace creates
+3. Cloudspace verifies the token resource matches the configured MCP resource.
+4. For initialize requests without an existing MCP session ID, Cloudspace creates
    a `StreamableHTTPServerTransport`, connects a new `McpServer`, and stores the
    transport by generated session ID.
 5. Later requests must include `mcp-session-id`; unknown session IDs get JSON-RPC
@@ -163,8 +163,8 @@ MCP session flow:
 Workspace/tool flow:
 
 1. Client calls `open_workspace` with a path under `allowedRoots`.
-2. DevSpace opens the actual checkout or creates a managed Git worktree.
-3. DevSpace returns a `workspaceId`, loaded root instructions, nested instruction
+2. Cloudspace opens the actual checkout or creates a managed Git worktree.
+3. Cloudspace returns a `workspaceId`, loaded root instructions, nested instruction
    file paths, visible skills, diagnostics, and model instructions.
 4. Subsequent tools resolve the `workspaceId`, validate paths against the
    workspace root, call the tool implementation, log the call, and return MCP
@@ -174,32 +174,32 @@ Workspace/tool flow:
 
 Persistent user files:
 
-- `~/.devspace/config.json`
-- `~/.devspace/auth.json`
+- `~/.cloudspace/config.json`
+- `~/.cloudspace/auth.json`
 
-`DEVSPACE_CONFIG_DIR` changes the directory that contains those files.
+`CLOUDSPACE_CONFIG_DIR` changes the directory that contains those files.
 
 Important environment variables:
 
 - `HOST`, `PORT`
-- `DEVSPACE_ALLOWED_ROOTS`
-- `DEVSPACE_PUBLIC_BASE_URL`
-- `DEVSPACE_ALLOWED_HOSTS`
-- `DEVSPACE_OAUTH_OWNER_TOKEN`
-- `DEVSPACE_OAUTH_ACCESS_TOKEN_TTL_SECONDS`
-- `DEVSPACE_OAUTH_REFRESH_TOKEN_TTL_SECONDS`
-- `DEVSPACE_OAUTH_SCOPES`
-- `DEVSPACE_OAUTH_ALLOWED_REDIRECT_HOSTS`
-- `DEVSPACE_STATE_DIR`
-- `DEVSPACE_WORKTREE_ROOT`
-- `DEVSPACE_TOOL_MODE`
-- `DEVSPACE_TOOL_NAMING`
-- `DEVSPACE_WIDGETS`
-- `DEVSPACE_SKILLS`
-- `DEVSPACE_AGENT_DIR`
-- `DEVSPACE_SKILL_PATHS`
-- `DEVSPACE_LOG_*`
-- `DEVSPACE_TRUST_PROXY`
+- `CLOUDSPACE_ALLOWED_ROOTS`
+- `CLOUDSPACE_PUBLIC_BASE_URL`
+- `CLOUDSPACE_ALLOWED_HOSTS`
+- `CLOUDSPACE_OAUTH_OWNER_TOKEN`
+- `CLOUDSPACE_OAUTH_ACCESS_TOKEN_TTL_SECONDS`
+- `CLOUDSPACE_OAUTH_REFRESH_TOKEN_TTL_SECONDS`
+- `CLOUDSPACE_OAUTH_SCOPES`
+- `CLOUDSPACE_OAUTH_ALLOWED_REDIRECT_HOSTS`
+- `CLOUDSPACE_STATE_DIR`
+- `CLOUDSPACE_WORKTREE_ROOT`
+- `CLOUDSPACE_TOOL_MODE`
+- `CLOUDSPACE_TOOL_NAMING`
+- `CLOUDSPACE_WIDGETS`
+- `CLOUDSPACE_SKILLS`
+- `CLOUDSPACE_AGENT_DIR`
+- `CLOUDSPACE_SKILL_PATHS`
+- `CLOUDSPACE_LOG_*`
+- `CLOUDSPACE_TRUST_PROXY`
 
 Default behavior:
 
@@ -209,8 +209,8 @@ Default behavior:
 - tool mode: `minimal`
 - tool naming: `short`
 - widgets: `full`
-- state dir: `~/.local/share/devspace`
-- worktree root: `~/.devspace/worktrees`
+- state dir: `~/.local/share/cloudspace`
+- worktree root: `~/.cloudspace/worktrees`
 - agent dir: `~/.codex`
 - skills: enabled
 - logging: JSON request and tool-call logs enabled, shell command previews
@@ -220,11 +220,11 @@ Config precedence is environment first, then persisted files, then defaults.
 
 ## Authentication
 
-DevSpace uses a single-user OAuth model:
+Cloudspace uses a single-user OAuth model:
 
-- The Owner password is generated by `devspace init` and stored in
+- The Owner password is generated by `cloudspace init` and stored in
   `auth.json`.
-- `DEVSPACE_OAUTH_OWNER_TOKEN` can replace the persisted password for
+- `CLOUDSPACE_OAUTH_OWNER_TOKEN` can replace the persisted password for
   environment-driven deployments.
 - The OAuth approval form is shown for authorization requests.
 - Owner password comparison uses `timingSafeEqual`.
@@ -240,15 +240,15 @@ DevSpace uses a single-user OAuth model:
   allowlisted.
 
 Host-header protection is provided by `createMcpExpressApp` using derived or
-configured allowed hosts unless `DEVSPACE_ALLOWED_HOSTS=*` is set.
+configured allowed hosts unless `CLOUDSPACE_ALLOWED_HOSTS=*` is set.
 
 Important boundary: shell tools run as the local OS user. Path checks protect
-DevSpace file tools, but shell commands have the same authority as the process
+Cloudspace file tools, but shell commands have the same authority as the process
 user. This is why OAuth, tunnels, and narrow allowlists matter.
 
 ## MCP Implementation
 
-DevSpace uses:
+Cloudspace uses:
 
 - `@modelcontextprotocol/sdk/server/mcp.js` for `McpServer`
 - `@modelcontextprotocol/sdk/server/express.js` for the Express MCP app
@@ -264,16 +264,16 @@ The app exposes:
 - `/healthz` for a simple health check
 
 Tool/resource registration happens per new MCP transport session. The registered
-tool names depend on `DEVSPACE_TOOL_MODE` and `DEVSPACE_TOOL_NAMING`.
+tool names depend on `CLOUDSPACE_TOOL_MODE` and `CLOUDSPACE_TOOL_NAMING`.
 
 Widget support:
 
-- `DEVSPACE_WIDGETS=full` attaches the React widget resource to normal tools.
-- `DEVSPACE_WIDGETS=changes` attaches widgets to `open_workspace` and
+- `CLOUDSPACE_WIDGETS=full` attaches the React widget resource to normal tools.
+- `CLOUDSPACE_WIDGETS=changes` attaches widgets to `open_workspace` and
   `show_changes`.
-- `DEVSPACE_WIDGETS=off` omits widget metadata.
+- `CLOUDSPACE_WIDGETS=off` omits widget metadata.
 
-The widget resource URI is `ui://devspace/workspace-app.html`; runtime HTML is
+The widget resource URI is `ui://cloudspace/workspace-app.html`; runtime HTML is
 generated from the Vite manifest in `dist/ui/.vite/manifest.json`.
 
 ## Tool Implementation
@@ -311,7 +311,7 @@ Tool behavior:
 - Skill paths can be read only when advertised by `open_workspace`; files inside
   a skill directory become readable only after the skill's `SKILL.md` is read.
 - Pi-backed tools adapt Pi SDK results into MCP content.
-- `apply_patch` uses a DevSpace parser and applies text patches with temporary
+- `apply_patch` uses a Cloudspace parser and applies text patches with temporary
   files.
 - `exec_command` starts a process in a workspace-owned session and returns a
   `sessionId` when the command is still running after the yield window.
@@ -364,11 +364,11 @@ Publishing:
 
 There are no Dockerfiles or Compose files in the repository today.
 
-Running DevSpace in Docker would change its security and usability model:
+Running Cloudspace in Docker would change its security and usability model:
 
 - The configured `allowedRoots` must be bind-mounted into the container at paths
   that match the configured roots.
-- `~/.devspace`, `stateDir`, and `worktreeRoot` should be persisted with volumes
+- `~/.cloudspace`, `stateDir`, and `worktreeRoot` should be persisted with volumes
   if OAuth clients, token hashes, workspace sessions, and managed worktrees must
   survive container restarts.
 - Git, Bash, Node, npm, and any project-specific build/test tools must exist
