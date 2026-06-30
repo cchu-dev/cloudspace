@@ -1,0 +1,6 @@
+# Set CLOUDSPACE_HOSTNAME to the public hostname Caddy should serve.
+# Example: CLOUDSPACE_HOSTNAME=cloudspace.example.com
+{$CLOUDSPACE_HOSTNAME} {
+  # Cloudspace is not published to the host; Docker DNS resolves this service name.
+  reverse_proxy cloudspace:3000
+}

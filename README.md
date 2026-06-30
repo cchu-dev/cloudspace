@@ -78,17 +78,29 @@ https://your-tunnel-host.example.com/mcp
 
 ## Docker
 
-Build and run Cloudspace locally with Docker Compose:
+Build and run Cloudspace behind Caddy with Docker Compose:
 
 ```bash
+export CLOUDSPACE_HOSTNAME="cloudspace.example.com"
 export CLOUDSPACE_OAUTH_OWNER_TOKEN="$(openssl rand -base64 32)"
 docker compose up --build
 ```
 
-The container listens on port `3000` and Compose publishes it at:
+Caddy is the only service published to the host, on ports `80` and `443`.
+Cloudspace listens on port `3000` only inside Docker's private service network,
+and Caddy reverse proxies to it. Configure your MCP client with:
 
 ```text
-http://localhost:3000/mcp
+https://cloudspace.example.com/mcp
+```
+
+By default, Compose sets `CLOUDSPACE_PUBLIC_BASE_URL` to
+`https://$CLOUDSPACE_HOSTNAME`. If you need to override the public origin, set it
+without `/mcp`:
+
+```bash
+export CLOUDSPACE_PUBLIC_BASE_URL="https://your-public-host.example.com"
+docker compose up --build
 ```
 
 By default, Compose mounts the current repository at `/workspace` and allows
@@ -100,18 +112,13 @@ export CLOUDSPACE_ALLOWED_ROOTS="/workspace"
 docker compose up --build
 ```
 
-For tunnel or public deployments, set the public origin without `/mcp`:
-
-```bash
-export CLOUDSPACE_PUBLIC_BASE_URL="https://your-tunnel-host.example.com"
-docker compose up --build
-```
-
-Persistent container data is stored in the named `cloudspace-data` volume:
+Persistent Cloudspace data is stored in the named `cloudspace-data` volume:
 
 - `/data/config` for Cloudspace config and auth files
 - `/data/state` for SQLite state
 - `/data/worktrees` for managed Git worktrees
+
+Caddy stores certificates and runtime state in `caddy-data` and `caddy-config`.
 
 The image also declares `/workspace` as a volume for project files. Health
 checks call `http://127.0.0.1:3000/healthz`.

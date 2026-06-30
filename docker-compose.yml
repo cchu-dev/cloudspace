@@ -1,12 +1,32 @@
 services:
+  caddy:
+    image: caddy:2-alpine
+    init: true
+    restart: unless-stopped
+    depends_on:
+      cloudspace:
+        condition: service_healthy
+    ports:
+      # Caddy is the only service published to the host. It terminates HTTPS and
+      # forwards traffic to Cloudspace over Docker's private service network.
+      - "80:80"
+      - "443:443"
+    environment:
+      CLOUDSPACE_HOSTNAME: ${CLOUDSPACE_HOSTNAME:?Set CLOUDSPACE_HOSTNAME to the public hostname, for example cloudspace.example.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
   cloudspace:
     build:
       context: .
     image: cloudspace:local
     init: true
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    expose:
+      # Internal only: Caddy reaches this as http://cloudspace:3000.
+      - "3000"
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
@@ -15,10 +35,11 @@ services:
       CLOUDSPACE_STATE_DIR: /data/state
       CLOUDSPACE_WORKTREE_ROOT: /data/worktrees
       CLOUDSPACE_ALLOWED_ROOTS: ${CLOUDSPACE_ALLOWED_ROOTS:-/workspace}
-      CLOUDSPACE_PUBLIC_BASE_URL: ${CLOUDSPACE_PUBLIC_BASE_URL:-http://localhost:3000}
+      CLOUDSPACE_PUBLIC_BASE_URL: ${CLOUDSPACE_PUBLIC_BASE_URL:-https://${CLOUDSPACE_HOSTNAME:?Set CLOUDSPACE_HOSTNAME to the public hostname, for example cloudspace.example.com}}
       CLOUDSPACE_OAUTH_OWNER_TOKEN: ${CLOUDSPACE_OAUTH_OWNER_TOKEN:?Set CLOUDSPACE_OAUTH_OWNER_TOKEN to a 16+ character secret}
       CLOUDSPACE_LOG_FORMAT: ${CLOUDSPACE_LOG_FORMAT:-json}
       CLOUDSPACE_LOG_LEVEL: ${CLOUDSPACE_LOG_LEVEL:-info}
+      CLOUDSPACE_TRUST_PROXY: ${CLOUDSPACE_TRUST_PROXY:-1}
     volumes:
       - cloudspace-data:/data
       - ${CLOUDSPACE_WORKSPACE_PATH:-.}:/workspace
@@ -36,4 +57,6 @@ services:
       retries: 3
 
 volumes:
+  caddy-data:
+  caddy-config:
   cloudspace-data:
