@@ -1,0 +1,22 @@
+[Unit]
+Description=Cloudspace MCP server (Docker Compose)
+Documentation=file:/opt/cloudspace/deploy/oracle-ubuntu/README.md
+Requires=docker.service
+Wants=network-online.target
+After=docker.service network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/cloudspace
+EnvironmentFile=/etc/cloudspace/cloudspace.env
+ExecStartPre=/usr/bin/docker compose --project-name cloudspace --env-file /etc/cloudspace/cloudspace.env config --quiet
+ExecStart=/usr/bin/docker compose --project-name cloudspace --env-file /etc/cloudspace/cloudspace.env up --build --remove-orphans
+ExecStop=/usr/bin/docker compose --project-name cloudspace --env-file /etc/cloudspace/cloudspace.env down
+Restart=always
+RestartSec=10
+TimeoutStartSec=0
+TimeoutStopSec=120
+KillMode=control-group
+
+[Install]
+WantedBy=multi-user.target

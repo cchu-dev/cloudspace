@@ -360,29 +360,81 @@ Publishing:
 - `better-sqlite3` is required at runtime
 - `node-pty` is optional and only needed for PTY support
 
-## Docker Implications
+## Docker and Caddy Deployment
 
-There are no Dockerfiles or Compose files in the repository today.
+The repository includes a production-oriented Docker path:
 
-Running Cloudspace in Docker would change its security and usability model:
+- `Dockerfile` builds the TypeScript server and React widget assets, prunes
+  development dependencies, and runs `node dist/cli.js serve` as the unprivileged
+  `node` user.
+- `docker-compose.yml` runs two services: `caddy` and `cloudspace`.
+- `Caddyfile` terminates public HTTP/HTTPS for `CLOUDSPACE_HOSTNAME` and reverse
+  proxies to `cloudspace:3000` over Docker's private service network.
 
-- The configured `allowedRoots` must be bind-mounted into the container at paths
-  that match the configured roots.
-- `~/.cloudspace`, `stateDir`, and `worktreeRoot` should be persisted with volumes
-  if OAuth clients, token hashes, workspace sessions, and managed worktrees must
-  survive container restarts.
-- Git, Bash, Node, npm, and any project-specific build/test tools must exist
-  inside the image.
-- Shell tool execution happens inside the container, not the host, unless host
-  files/tools/sockets are mounted in.
-- File ownership can become a problem because edits are written by the container
-  user.
-- Native dependencies matter. `better-sqlite3` and optional `node-pty` must be
-  built or installed for the container's Node ABI, OS, libc, and architecture.
-- Public URL and Host-header configuration must match the external reverse proxy
-  or tunnel endpoint, not just the internal container port.
-- Binding `HOST=0.0.0.0` is usually necessary inside Docker, while external
-  access should still be protected by OAuth and a trusted tunnel/proxy.
-- Docker isolation can reduce host exposure if roots are mounted read/write
-  narrowly, but mounting broad host paths or the Docker socket would restore
-  broad host-level risk.
+Container boundaries:
+
+- Caddy is the only service publishing host ports, currently `80:80` and
+  `443:443`.
+- Cloudspace uses `expose: 3000`, not `ports`, so it is reachable only by other
+  containers on the Compose network.
+- Both services use Docker's `no-new-privileges:true` security option.
+- Cloudspace stores config, SQLite state, OAuth token hashes, workspace sessions,
+  and managed worktrees in the `cloudspace-data` named volume under `/data`.
+- Caddy stores certificates and runtime state in `caddy-data` and
+  `caddy-config`.
+
+Workspace mounts:
+
+- Public Docker deployments must set `CLOUDSPACE_WORKSPACE_PATH` explicitly.
+- The selected host directory is bind-mounted to `/workspace` in the Cloudspace
+  container.
+- `CLOUDSPACE_ALLOWED_ROOTS` defaults to `/workspace`; this should remain the
+  container path even when `CLOUDSPACE_WORKSPACE_PATH` points at another host
+  directory such as `/home/ubuntu/workspaces`.
+- Shell tool execution happens inside the Cloudspace container with access to
+  the mounted workspace path and tools installed in the image.
+
+Docker security defaults:
+
+- `CLOUDSPACE_PUBLIC_BASE_URL` defaults to `https://$CLOUDSPACE_HOSTNAME`.
+- `CLOUDSPACE_OAUTH_OWNER_TOKEN` is required for Compose deployments.
+- Docker refresh-token TTL defaults to seven days through
+  `CLOUDSPACE_OAUTH_REFRESH_TOKEN_TTL_SECONDS=604800`, while still allowing an
+  environment override.
+- `CLOUDSPACE_TRUST_PROXY` defaults to `1` so Cloudspace trusts Caddy's forwarded
+  request metadata.
+- Caddy sets conservative response headers globally, but does not set a global
+  `X-Frame-Options` or global CSP because ChatGPT Apps/widgets may need to embed
+  Cloudspace-provided resources.
+
+## Oracle Cloud Ubuntu Deployment
+
+`deploy/oracle-ubuntu` contains a concrete VM deployment bundle for Ubuntu on
+Oracle Cloud Infrastructure. It uses Docker Compose, Caddy, and systemd; it does
+not assume Kubernetes.
+
+Production paths:
+
+- app checkout: `/opt/cloudspace`
+- environment and secrets: `/etc/cloudspace/cloudspace.env`
+- documented workspace default: `/srv/cloudspace/workspace`
+- backups: `/var/backups/cloudspace`
+
+Bundle contents:
+
+- `cloudspace.env.example` documents the production environment variables and
+  keeps `CLOUDSPACE_ALLOWED_ROOTS=/workspace`.
+- `cloudspace.service` runs `docker compose up --build --remove-orphans` in
+  attached mode so systemd supervises the foreground Compose process.
+- `deploy.sh` installs Docker when needed, syncs the checkout to
+  `/opt/cloudspace`, creates the environment file and default workspace/backup
+  directories, installs the systemd unit, and starts the service only after
+  placeholders are replaced.
+- `backup.sh` archives the three Compose named volumes and
+  `/etc/cloudspace/cloudspace.env`. It includes `/srv/cloudspace/workspace` only
+  when called with `--include-workspace`; custom workspace paths should use their
+  own storage backup policy.
+- `update.sh` runs a backup first, pulls the Git checkout, validates Compose
+  config, rebuilds images, restarts the systemd service, and prints status.
+- `README.md` documents OCI network prerequisites, installation, backup, update,
+  and manual restore steps.

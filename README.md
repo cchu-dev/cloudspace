@@ -132,6 +132,14 @@ Caddy stores certificates and runtime state in `caddy-data` and `caddy-config`.
 The image also declares `/workspace` as a volume for project files. Health
 checks call `http://127.0.0.1:3000/healthz`.
 
+### Oracle Cloud Ubuntu Deployment
+
+For a production VM deployment on Oracle Cloud Ubuntu, use the deployment bundle
+in [deploy/oracle-ubuntu](deploy/oracle-ubuntu/README.md). It installs
+Cloudspace under `/opt/cloudspace`, stores production environment values in
+`/etc/cloudspace/cloudspace.env`, runs Docker Compose under systemd, and includes
+backup, update, and uninstall scripts.
+
 ## What ChatGPT Can Do
 
 Once connected, ChatGPT can open one of your approved project folders as a
