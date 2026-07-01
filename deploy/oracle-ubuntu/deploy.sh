@@ -7,6 +7,9 @@ ENV_FILE="${ENV_FILE:-${ENV_DIR}/cloudspace.env}"
 WORKSPACE_DIR="${WORKSPACE_DIR:-/srv/cloudspace/workspace}"
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/cloudspace}"
 SERVICE_FILE="${SERVICE_FILE:-/etc/systemd/system/cloudspace.service}"
+CONTAINER_WORKSPACE_UID="${CONTAINER_WORKSPACE_UID:-1000}"
+CONTAINER_WORKSPACE_GID="${CONTAINER_WORKSPACE_GID:-1000}"
+DEFAULT_WORKSPACE_DIR="/srv/cloudspace/workspace"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
@@ -85,6 +88,15 @@ install_environment() {
   install -d -m 0755 "${ENV_DIR}"
   install -d -m 0755 "${WORKSPACE_DIR}"
   install -d -m 0700 "${BACKUP_DIR}"
+
+  if [ "${WORKSPACE_DIR}" = "${DEFAULT_WORKSPACE_DIR}" ]; then
+    log "Making ${WORKSPACE_DIR} writable by the Cloudspace container user (${CONTAINER_WORKSPACE_UID}:${CONTAINER_WORKSPACE_GID})"
+    chown -R "${CONTAINER_WORKSPACE_UID}:${CONTAINER_WORKSPACE_GID}" "${WORKSPACE_DIR}"
+    chmod u+rwx "${WORKSPACE_DIR}"
+  else
+    log "Leaving custom workspace ownership unchanged: ${WORKSPACE_DIR}"
+    log "Ensure it is writable by container UID:GID ${CONTAINER_WORKSPACE_UID}:${CONTAINER_WORKSPACE_GID}"
+  fi
 
   if [ ! -f "${ENV_FILE}" ]; then
     log "Creating ${ENV_FILE} from template"

@@ -130,6 +130,21 @@ To regenerate setup:
 npx cloudspace init --force
 ```
 
+## Docker Workspace Is Read-Only
+
+In Docker deployments, Cloudspace runs as the container `node` user, UID:GID
+`1000:1000`. The bind-mounted host directory must be writable by that UID/GID.
+If ChatGPT can read files but cannot create architecture docs or edit files, fix
+the host directory ownership and restart the service:
+
+```bash
+sudo chown -R 1000:1000 /srv/cloudspace/workspace
+sudo systemctl restart cloudspace.service
+```
+
+For a custom `CLOUDSPACE_WORKSPACE_PATH`, run the same `chown` against that host
+path.
+
 ## Unknown `workspaceId`
 
 `workspaceId` values are session identifiers. If the server restarts and the

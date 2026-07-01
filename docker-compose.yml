@@ -26,6 +26,7 @@ services:
     image: cloudspace:local
     init: true
     restart: unless-stopped
+    user: "${CLOUDSPACE_CONTAINER_USER:-1000:1000}"  
     security_opt:
       - no-new-privileges:true
     expose:

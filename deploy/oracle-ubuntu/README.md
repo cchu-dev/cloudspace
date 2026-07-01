@@ -74,6 +74,25 @@ Use this MCP endpoint:
 https://cloudspace.example.com/mcp
 ```
 
+## Workspace Write Access
+
+The Cloudspace container runs as the `node` user, UID:GID `1000:1000`.
+For ChatGPT to create or edit files, the host directory mounted as
+`CLOUDSPACE_WORKSPACE_PATH` must be writable by that UID/GID. The deploy script
+sets this automatically for the default `/srv/cloudspace/workspace` path.
+
+If you point `CLOUDSPACE_WORKSPACE_PATH` at a custom directory, grant write
+access before starting the service:
+
+```bash
+sudo mkdir -p /home/ubuntu/workspaces
+sudo chown -R 1000:1000 /home/ubuntu/workspaces
+```
+
+A read-only symptom is: ChatGPT can inspect files through Cloudspace but write or
+edit tools fail with permission errors. Fix the host directory ownership, then
+restart Cloudspace.
+
 ## systemd Model
 
 `cloudspace.service` runs Docker Compose in attached mode:
