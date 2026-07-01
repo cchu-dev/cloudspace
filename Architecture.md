@@ -434,7 +434,8 @@ Bundle contents:
   `/etc/cloudspace/cloudspace.env`. It includes `/srv/cloudspace/workspace` only
   when called with `--include-workspace`; custom workspace paths should use their
   own storage backup policy.
-- `update.sh` runs a backup first, pulls the Git checkout, validates Compose
-  config, rebuilds images, restarts the systemd service, and prints status.
+- `update.sh` runs a backup first, updates `/opt/cloudspace` from either
+  `git pull --ff-only` or the current source checkout, validates Compose config,
+  rebuilds images, restarts the systemd service, and prints status.
 - `README.md` documents OCI network prerequisites, installation, backup, update,
   and manual restore steps.

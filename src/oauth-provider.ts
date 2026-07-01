@@ -62,6 +62,7 @@ function formHtml(params: {
   scopes: string[];
   resource?: URL;
   fields: Record<string, string | undefined>;
+  formAction: string;
 }): string {
   const scopeText = params.scopes.length > 0 ? params.scopes.join(" ") : "cloudspace";
   const resourceText = params.resource?.href ?? "Cloudspace MCP endpoint";
@@ -104,7 +105,7 @@ function formHtml(params: {
         <dt>Scope</dt><dd>${htmlEscape(scopeText)}</dd>
         <dt>Resource</dt><dd>${htmlEscape(resourceText)}</dd>
       </dl>
-      <form method="post">
+      <form method="post" action="${htmlEscape(params.formAction)}">
 ${hiddenFields}
         <label for="owner_token">Owner password</label>
         <input id="owner_token" name="owner_token" type="password" autocomplete="current-password" autofocus required />
@@ -125,7 +126,7 @@ function setAuthorizationHtmlHeaders(res: Response, status: number): Response {
     .setHeader("Referrer-Policy", "no-referrer")
     .setHeader(
       "Content-Security-Policy",
-      "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+      "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'",
     );
 }
 
@@ -209,6 +210,7 @@ export class SingleUserOAuthProvider implements OAuthServerProvider {
           scopes: params.scopes ?? this.config.scopes,
           resource: params.resource,
           fields: authorizationFormFields(client, params),
+          formAction: res.req.originalUrl,
         }),
       );
       return;
@@ -228,6 +230,7 @@ export class SingleUserOAuthProvider implements OAuthServerProvider {
           scopes: params.scopes ?? this.config.scopes,
           resource: params.resource,
           fields: authorizationFormFields(client, params),
+          formAction: res.req.originalUrl,
         }),
       );
       return;
@@ -244,6 +247,7 @@ export class SingleUserOAuthProvider implements OAuthServerProvider {
           scopes: params.scopes ?? this.config.scopes,
           resource: params.resource,
           fields: authorizationFormFields(client, params),
+          formAction: res.req.originalUrl,
         }),
       );
       return;

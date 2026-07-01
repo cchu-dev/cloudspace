@@ -121,10 +121,16 @@ Run:
 sudo /opt/cloudspace/deploy/oracle-ubuntu/update.sh
 ```
 
-The update script runs a backup first, pulls the Git checkout, validates the
+The update script runs a backup first, updates `/opt/cloudspace`, validates the
 Compose config, rebuilds the Docker images, restarts `cloudspace.service`, and
 prints systemd and Compose status. Pass `--include-workspace` to include the
 default `/srv/cloudspace/workspace` tree in the pre-update backup.
+
+When run from `/opt/cloudspace/deploy/oracle-ubuntu/update.sh`, it updates the
+installed checkout with `git pull --ff-only`. When run from another Cloudspace
+checkout, such as `~/workspaces/cloudspace/deploy/oracle-ubuntu/update.sh`, it
+syncs that current checkout to `/opt/cloudspace` with `rsync` instead. This lets
+you deploy local committed changes before they are pushed to a remote.
 
 ## Uninstall
 
