@@ -320,6 +320,7 @@ function createAuthorizationResponse(
   result.response = {
     req: {
       method,
+      originalUrl: "/authorize",
       body,
       ip,
       socket: { remoteAddress: ip },
