@@ -1,6 +1,8 @@
 # Set CLOUDSPACE_HOSTNAME to the public hostname Caddy should serve.
 # Example: CLOUDSPACE_HOSTNAME=cloudspace.example.com
 {$CLOUDSPACE_HOSTNAME} {
+  tls /etc/caddy/origin.pem /etc/caddy/origin.key
+
   header {
     Strict-Transport-Security "max-age=31536000; includeSubDomains"
     X-Content-Type-Options "nosniff"

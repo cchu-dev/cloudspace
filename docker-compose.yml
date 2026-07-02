@@ -17,6 +17,8 @@ services:
       CLOUDSPACE_HOSTNAME: ${CLOUDSPACE_HOSTNAME:?Set CLOUDSPACE_HOSTNAME to the public hostname, for example cloudspace.example.com}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - /etc/cloudspace/certs/origin.pem:/etc/caddy/origin.pem:ro
+      - /etc/cloudspace/certs/origin.key:/etc/caddy/origin.key:ro
       - caddy-data:/data
       - caddy-config:/config
 
