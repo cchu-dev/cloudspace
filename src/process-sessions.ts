@@ -89,7 +89,10 @@ function terminalSize(value: number | undefined, fallback: number): number {
 function processEnvironment(): Record<string, string> {
   return {
     ...Object.fromEntries(
-      Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
+      Object.entries(process.env).filter(
+        (entry): entry is [string, string] =>
+          entry[1] !== undefined && !isCloudspaceSecretEnvironmentVariable(entry[0]),
+      ),
     ),
     NO_COLOR: "1",
     TERM: "dumb",
@@ -100,6 +103,13 @@ function processEnvironment(): Record<string, string> {
     LANG: process.env.LANG ?? "C.UTF-8",
     LC_ALL: process.env.LC_ALL ?? "C.UTF-8",
   };
+}
+
+function isCloudspaceSecretEnvironmentVariable(name: string): boolean {
+  return (
+    name === "CLOUDSPACE_OAUTH_OWNER_TOKEN" ||
+    /^CLOUDSPACE_.*(?:SECRET|PASSWORD|PRIVATE_KEY|API_KEY)$/.test(name)
+  );
 }
 
 function codePointLength(value: string): number {

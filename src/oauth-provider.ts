@@ -27,6 +27,14 @@ interface AuthorizationCodeRecord {
 }
 
 const CODE_TTL_MS = 5 * 60 * 1000;
+const OWNER_PASSWORD_FAILURE_LIMIT = 5;
+const OWNER_PASSWORD_LOCKOUT_MS = 15 * 60 * 1000;
+
+interface FailedOwnerPasswordAttempt {
+  count: number;
+  firstFailedAtMs: number;
+  lockedUntilMs?: number;
+}
 
 function randomToken(): string {
   return randomBytes(32).toString("base64url");
@@ -54,9 +62,10 @@ function formHtml(params: {
   scopes: string[];
   resource?: URL;
   fields: Record<string, string | undefined>;
+  formAction: string;
 }): string {
-  const scopeText = params.scopes.length > 0 ? params.scopes.join(" ") : "devspace";
-  const resourceText = params.resource?.href ?? "DevSpace MCP endpoint";
+  const scopeText = params.scopes.length > 0 ? params.scopes.join(" ") : "cloudspace";
+  const resourceText = params.resource?.href ?? "Cloudspace MCP endpoint";
   const error = params.error
     ? `<p class="error">${htmlEscape(params.error)}</p>`
     : "";
@@ -70,7 +79,7 @@ function formHtml(params: {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Connect DevSpace</title>
+    <title>Connect Cloudspace</title>
     <style>
       body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
       main { max-width: 440px; margin: 12vh auto; padding: 32px; background: #111827; border: 1px solid #334155; border-radius: 18px; box-shadow: 0 24px 80px rgba(0,0,0,.35); }
@@ -88,7 +97,7 @@ function formHtml(params: {
   </head>
   <body>
     <main>
-      <h1>Connect DevSpace</h1>
+      <h1>Connect Cloudspace</h1>
       <p class="warning">Only approve this if you are intentionally connecting your own ChatGPT or MCP client to this local machine.</p>
       ${error}
       <dl>
@@ -96,15 +105,68 @@ function formHtml(params: {
         <dt>Scope</dt><dd>${htmlEscape(scopeText)}</dd>
         <dt>Resource</dt><dd>${htmlEscape(resourceText)}</dd>
       </dl>
-      <form method="post">
+      <form method="post" action="${htmlEscape(params.formAction)}">
 ${hiddenFields}
         <label for="owner_token">Owner password</label>
         <input id="owner_token" name="owner_token" type="password" autocomplete="current-password" autofocus required />
-        <button type="submit">Authorize DevSpace</button>
+        <button type="submit">Authorize Cloudspace</button>
       </form>
     </main>
   </body>
 </html>`;
+}
+
+function setAuthorizationHtmlHeaders(res: Response, status: number): Response {
+  return res
+    .status(status)
+    .setHeader("Content-Type", "text/html; charset=utf-8")
+    .setHeader("Cache-Control", "no-store")
+    .setHeader("Pragma", "no-cache")
+    .setHeader("X-Content-Type-Options", "nosniff")
+    .setHeader("Referrer-Policy", "no-referrer")
+    .setHeader(
+      "Content-Security-Policy",
+      "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'",
+    );
+}
+
+class OwnerPasswordRateLimiter {
+  private readonly attempts = new Map<string, FailedOwnerPasswordAttempt>();
+
+  isLocked(key: string, nowMs = Date.now()): boolean {
+    const attempt = this.attempts.get(key);
+    if (!attempt) return false;
+
+    if (attempt.lockedUntilMs && attempt.lockedUntilMs > nowMs) return true;
+    if (attempt.lockedUntilMs || nowMs - attempt.firstFailedAtMs > OWNER_PASSWORD_LOCKOUT_MS) {
+      this.attempts.delete(key);
+    }
+    return false;
+  }
+
+  retryAfterSeconds(key: string, nowMs = Date.now()): number | undefined {
+    const lockedUntilMs = this.attempts.get(key)?.lockedUntilMs;
+    if (!lockedUntilMs || lockedUntilMs <= nowMs) return undefined;
+    return Math.ceil((lockedUntilMs - nowMs) / 1000);
+  }
+
+  recordFailure(key: string, nowMs = Date.now()): void {
+    const existing = this.attempts.get(key);
+    const attempt =
+      existing && nowMs - existing.firstFailedAtMs <= OWNER_PASSWORD_LOCKOUT_MS
+        ? existing
+        : { count: 0, firstFailedAtMs: nowMs };
+
+    attempt.count += 1;
+    if (attempt.count >= OWNER_PASSWORD_FAILURE_LIMIT) {
+      attempt.lockedUntilMs = nowMs + OWNER_PASSWORD_LOCKOUT_MS;
+    }
+    this.attempts.set(key, attempt);
+  }
+
+  recordSuccess(key: string): void {
+    this.attempts.delete(key);
+  }
 }
 
 function requestedScopesAllowed(requested: string[], supported: string[]): boolean {
@@ -114,6 +176,7 @@ function requestedScopesAllowed(requested: string[], supported: string[]): boole
 export class SingleUserOAuthProvider implements OAuthServerProvider {
   readonly clientsStore: OAuthRegisteredClientsStore;
   private readonly codes = new Map<string, AuthorizationCodeRecord>();
+  private readonly ownerPasswordRateLimiter = new OwnerPasswordRateLimiter();
   private readonly oauthStore: SqliteOAuthStore;
   private readonly resourceServerUrl: URL;
 
@@ -140,13 +203,34 @@ export class SingleUserOAuthProvider implements OAuthServerProvider {
     }
 
     if (res.req.method !== "POST") {
-      res.status(200).setHeader("Content-Type", "text/html; charset=utf-8");
+      setAuthorizationHtmlHeaders(res, 200);
       res.send(
         formHtml({
           clientName: client.client_name ?? client.client_id,
           scopes: params.scopes ?? this.config.scopes,
           resource: params.resource,
           fields: authorizationFormFields(client, params),
+          formAction: res.req.originalUrl,
+        }),
+      );
+      return;
+    }
+
+    const rateLimitKey = ownerPasswordRateLimitKey(res, params);
+    if (this.ownerPasswordRateLimiter.isLocked(rateLimitKey)) {
+      const retryAfterSeconds = this.ownerPasswordRateLimiter.retryAfterSeconds(rateLimitKey);
+      if (retryAfterSeconds !== undefined) {
+        res.setHeader("Retry-After", String(retryAfterSeconds));
+      }
+      setAuthorizationHtmlHeaders(res, 429);
+      res.send(
+        formHtml({
+          error: "Too many failed attempts. Try again later.",
+          clientName: client.client_name ?? client.client_id,
+          scopes: params.scopes ?? this.config.scopes,
+          resource: params.resource,
+          fields: authorizationFormFields(client, params),
+          formAction: res.req.originalUrl,
         }),
       );
       return;
@@ -154,7 +238,8 @@ export class SingleUserOAuthProvider implements OAuthServerProvider {
 
     const providedToken = String(res.req.body?.owner_token ?? "");
     if (!safeEquals(providedToken, this.config.ownerToken)) {
-      res.status(401).setHeader("Content-Type", "text/html; charset=utf-8");
+      this.ownerPasswordRateLimiter.recordFailure(rateLimitKey);
+      setAuthorizationHtmlHeaders(res, 401);
       res.send(
         formHtml({
           error: "The Owner password was not accepted.",
@@ -162,10 +247,12 @@ export class SingleUserOAuthProvider implements OAuthServerProvider {
           scopes: params.scopes ?? this.config.scopes,
           resource: params.resource,
           fields: authorizationFormFields(client, params),
+          formAction: res.req.originalUrl,
         }),
       );
       return;
     }
+    this.ownerPasswordRateLimiter.recordSuccess(rateLimitKey);
 
     const code = `code-${randomUUID()}`;
     this.codes.set(code, {
@@ -314,6 +401,11 @@ export class SingleUserOAuthProvider implements OAuthServerProvider {
       scope: scopes.join(" "),
     };
   }
+}
+
+function ownerPasswordRateLimitKey(res: Response, params: AuthorizationParams): string {
+  const ip = res.req.ip ?? res.req.socket.remoteAddress ?? "unknown";
+  return `${ip}|${params.resource?.href ?? "unknown-resource"}`;
 }
 
 function authorizationFormFields(

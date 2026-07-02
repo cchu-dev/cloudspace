@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { applyPatch, parsePatch, replaceFile } from "./apply-patch.js";
 
-const root = await mkdtemp(join(tmpdir(), "devspace-apply-patch-"));
+const root = await mkdtemp(join(tmpdir(), "cloudspace-apply-patch-"));
 const replacement = join(root, "replacement.txt");
 const replacementTemporary = join(root, "replacement.tmp");
 await writeFile(replacement, "old\n");
@@ -83,7 +83,7 @@ await assert.rejects(
   /path escapes the workspace/,
 );
 
-const outside = await mkdtemp(join(tmpdir(), "devspace-apply-patch-outside-"));
+const outside = await mkdtemp(join(tmpdir(), "cloudspace-apply-patch-outside-"));
 await symlink(outside, join(root, "outside-link"), process.platform === "win32" ? "junction" : "dir");
 await assert.rejects(
   applyPatch(
@@ -133,7 +133,7 @@ assert.throws(
   /has no content/,
 );
 
-const overwriteRoot = await mkdtemp(join(tmpdir(), "devspace-apply-patch-overwrite-"));
+const overwriteRoot = await mkdtemp(join(tmpdir(), "cloudspace-apply-patch-overwrite-"));
 await writeFile(join(overwriteRoot, "duplicate.txt"), "old content\n");
 await applyPatch(
   overwriteRoot,
@@ -159,7 +159,7 @@ await applyPatch(
 assert.equal(await readFile(join(overwriteRoot, "destination.txt"), "utf8"), "new\n");
 await assert.rejects(readFile(join(overwriteRoot, "source.txt"), "utf8"), /ENOENT/);
 
-const noNewlineRoot = await mkdtemp(join(tmpdir(), "devspace-apply-patch-newline-"));
+const noNewlineRoot = await mkdtemp(join(tmpdir(), "cloudspace-apply-patch-newline-"));
 await writeFile(join(noNewlineRoot, "no-newline.txt"), "old");
 await applyPatch(
   noNewlineRoot,
@@ -172,7 +172,7 @@ await applyPatch(
 );
 assert.equal(await readFile(join(noNewlineRoot, "no-newline.txt"), "utf8"), "new\n");
 
-const eofRoot = await mkdtemp(join(tmpdir(), "devspace-apply-patch-eof-"));
+const eofRoot = await mkdtemp(join(tmpdir(), "cloudspace-apply-patch-eof-"));
 await writeFile(join(eofRoot, "tail.txt"), "first\nsecond\n");
 await applyPatch(
   eofRoot,
@@ -200,7 +200,7 @@ await assert.rejects(
   /could not find hunk context/,
 );
 
-const lenientRoot = await mkdtemp(join(tmpdir(), "devspace-apply-patch-lenient-"));
+const lenientRoot = await mkdtemp(join(tmpdir(), "cloudspace-apply-patch-lenient-"));
 await writeFile(join(lenientRoot, "file.txt"), "one\n");
 await applyPatch(
   lenientRoot,

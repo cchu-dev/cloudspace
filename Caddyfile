@@ -1,0 +1,16 @@
+# Set CLOUDSPACE_HOSTNAME to the public hostname Caddy should serve.
+# Example: CLOUDSPACE_HOSTNAME=cloudspace.example.com
+{$CLOUDSPACE_HOSTNAME} {
+  tls /etc/caddy/origin.pem /etc/caddy/origin.key
+
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    X-Content-Type-Options "nosniff"
+    Referrer-Policy "no-referrer"
+    Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+    -Server
+  }
+
+  # Cloudspace is not published to the host; Docker DNS resolves this service name.
+  reverse_proxy cloudspace:3000
+}

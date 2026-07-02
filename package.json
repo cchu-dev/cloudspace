@@ -1,5 +1,5 @@
 {
-  "name": "@waishnav/devspace",
+  "name": "cloudspace",
   "version": "1.0.3",
   "description": "Expose a secure local coding workspace through an MCP server.",
   "type": "module",
@@ -8,7 +8,7 @@
     "node": ">=22.19 <27"
   },
   "bin": {
-    "devspace": "dist/cli.js"
+    "cloudspace": "dist/cli.js"
   },
   "files": [
     "dist",

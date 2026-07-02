@@ -57,6 +57,26 @@ const environment = await manager.start({
 assert.equal(environment.running, false);
 assert.match(environment.output, /1,dumb,cat,cat,cat,1/);
 
+const previousOwnerToken = process.env.CLOUDSPACE_OAUTH_OWNER_TOKEN;
+process.env.CLOUDSPACE_OAUTH_OWNER_TOKEN = "owner-token-that-must-not-leak";
+try {
+  const scrubbedEnvironment = await manager.start({
+    workspaceId: "workspace-a",
+    cwd: process.cwd(),
+    command: `${node} -e "console.log(process.env.CLOUDSPACE_OAUTH_OWNER_TOKEN || 'scrubbed')"`,
+    yieldTimeMs: 2_000,
+  });
+  assert.equal(scrubbedEnvironment.running, false);
+  assert.match(scrubbedEnvironment.output, /scrubbed/);
+  assert.doesNotMatch(scrubbedEnvironment.output, /owner-token-that-must-not-leak/);
+} finally {
+  if (previousOwnerToken === undefined) {
+    delete process.env.CLOUDSPACE_OAUTH_OWNER_TOKEN;
+  } else {
+    process.env.CLOUDSPACE_OAUTH_OWNER_TOKEN = previousOwnerToken;
+  }
+}
+
 const background = await manager.start({
   workspaceId: "workspace-a",
   cwd: process.cwd(),

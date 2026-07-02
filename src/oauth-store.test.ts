@@ -3,17 +3,18 @@ import { createHash } from "node:crypto";
 import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { Response } from "express";
 import { InvalidGrantError, InvalidTokenError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
 import { databasePath, openDatabase } from "./db/client.js";
 import { SingleUserOAuthProvider } from "./oauth-provider.js";
 import { SqliteOAuthClientsStore, SqliteOAuthStore } from "./oauth-store.js";
 
-const root = await mkdtemp(join(tmpdir(), "devspace-oauth-test-"));
+const root = await mkdtemp(join(tmpdir(), "cloudspace-oauth-test-"));
 const oauthConfig = {
   ownerToken: "test-owner-token-that-is-long-enough",
   accessTokenTtlSeconds: 3600,
   refreshTokenTtlSeconds: 2592000,
-  scopes: ["devspace"],
+  scopes: ["cloudspace"],
   allowedRedirectHosts: ["chatgpt.com"],
 };
 const mcpUrl = new URL("https://agent.example.com/mcp");
@@ -25,6 +26,7 @@ try {
   testExpiredTokenCleanup(join(root, "expiration"));
   testTransactionalTokenRotation(join(root, "rotation"));
   await testProviderRestartRotationAndRevocation(join(root, "provider"));
+  await testOwnerPasswordRateLimit(join(root, "owner-password-rate-limit"));
 } finally {
   await rm(root, { recursive: true, force: true });
 }
@@ -38,7 +40,7 @@ async function testDatabaseConfiguration(stateDir: string): Promise<void> {
     assert.equal(database.sqlite.pragma("foreign_keys", { simple: true }), 1);
 
     const migrations = database.sqlite
-      .prepare("select version, name from devspace_schema_migrations order by version")
+      .prepare("select version, name from cloudspace_schema_migrations order by version")
       .all();
     assert.deepEqual(migrations, [
       { version: 1, name: "workspace-state" },
@@ -68,14 +70,14 @@ function testPersistenceAndTokenHashing(stateDir: string): void {
     accessTokenHash: hashToken(accessToken),
     accessToken: {
       clientId: client.client_id,
-      scopes: ["devspace"],
+      scopes: ["cloudspace"],
       expiresAt: Math.floor(Date.now() / 1000) + 3600,
       resource: mcpUrl.href,
     },
     refreshTokenHash: hashToken(refreshToken),
     refreshToken: {
       clientId: client.client_id,
-      scopes: ["devspace"],
+      scopes: ["cloudspace"],
       expiresAt: Math.floor(Date.now() / 1000) + 2592000,
       resource: mcpUrl.href,
     },
@@ -119,9 +121,9 @@ function testExpiredTokenCleanup(stateDir: string): void {
   const expiredAt = Math.floor(Date.now() / 1000) - 1;
   store.saveTokenPair({
     accessTokenHash: "expired-access-hash",
-    accessToken: { clientId: client.client_id, scopes: ["devspace"], expiresAt: expiredAt },
+    accessToken: { clientId: client.client_id, scopes: ["cloudspace"], expiresAt: expiredAt },
     refreshTokenHash: "expired-refresh-hash",
-    refreshToken: { clientId: client.client_id, scopes: ["devspace"], expiresAt: expiredAt },
+    refreshToken: { clientId: client.client_id, scopes: ["cloudspace"], expiresAt: expiredAt },
   });
   store.close();
 
@@ -143,7 +145,7 @@ function testTransactionalTokenRotation(stateDir: string): void {
     const expiresAt = Math.floor(Date.now() / 1000) + 3600;
     store.saveRefreshToken("old-refresh-hash", {
       clientId: client.client_id,
-      scopes: ["devspace"],
+      scopes: ["cloudspace"],
       expiresAt,
     });
 
@@ -151,9 +153,9 @@ function testTransactionalTokenRotation(stateDir: string): void {
       store.saveTokenPair(
         {
           accessTokenHash: "new-access-hash",
-          accessToken: { clientId: client.client_id, scopes: ["devspace"], expiresAt },
+          accessToken: { clientId: client.client_id, scopes: ["cloudspace"], expiresAt },
           refreshTokenHash: "new-refresh-hash",
-          refreshToken: { clientId: client.client_id, scopes: ["devspace"], expiresAt },
+          refreshToken: { clientId: client.client_id, scopes: ["cloudspace"], expiresAt },
         },
         "old-refresh-hash",
       ),
@@ -167,9 +169,9 @@ function testTransactionalTokenRotation(stateDir: string): void {
       store.saveTokenPair(
         {
           accessTokenHash: "losing-access-hash",
-          accessToken: { clientId: client.client_id, scopes: ["devspace"], expiresAt },
+          accessToken: { clientId: client.client_id, scopes: ["cloudspace"], expiresAt },
           refreshTokenHash: "losing-refresh-hash",
-          refreshToken: { clientId: client.client_id, scopes: ["devspace"], expiresAt },
+          refreshToken: { clientId: client.client_id, scopes: ["cloudspace"], expiresAt },
         },
         "old-refresh-hash",
       ),
@@ -196,7 +198,7 @@ async function testProviderRestartRotationAndRevocation(stateDir: string): Promi
     params: {
       redirectUri,
       codeChallenge: "challenge",
-      scopes: ["devspace"],
+      scopes: ["cloudspace"],
       resource: mcpUrl,
     },
     expiresAtMs: Date.now() + 60_000,
@@ -219,14 +221,14 @@ async function testProviderRestartRotationAndRevocation(stateDir: string): Promi
     const refreshed = await secondProvider.exchangeRefreshToken(
       client,
       issued.refresh_token,
-      ["devspace"],
+      ["cloudspace"],
       mcpUrl,
     );
     assert.ok(refreshed.refresh_token);
     assert.notEqual(refreshed.access_token, issued.access_token);
 
     await assert.rejects(
-      secondProvider.exchangeRefreshToken(client, issued.refresh_token, ["devspace"], mcpUrl),
+      secondProvider.exchangeRefreshToken(client, issued.refresh_token, ["cloudspace"], mcpUrl),
       InvalidGrantError,
     );
 
@@ -235,12 +237,120 @@ async function testProviderRestartRotationAndRevocation(stateDir: string): Promi
 
     await secondProvider.revokeToken(client, { token: refreshed.refresh_token });
     await assert.rejects(
-      secondProvider.exchangeRefreshToken(client, refreshed.refresh_token, ["devspace"], mcpUrl),
+      secondProvider.exchangeRefreshToken(client, refreshed.refresh_token, ["cloudspace"], mcpUrl),
       InvalidGrantError,
     );
   } finally {
     secondProvider.close();
   }
+}
+
+async function testOwnerPasswordRateLimit(stateDir: string): Promise<void> {
+  const provider = new SingleUserOAuthProvider(oauthConfig, mcpUrl, stateDir);
+  const client = await provider.clientsStore.registerClient?.({
+    redirect_uris: [redirectUri],
+    client_name: "ChatGPT",
+  });
+  assert.ok(client);
+
+  const params = {
+    redirectUri,
+    codeChallenge: "challenge",
+    scopes: ["cloudspace"],
+    resource: mcpUrl,
+  };
+
+  try {
+    const getResponse = createAuthorizationResponse("GET", {}, "203.0.113.10");
+    await provider.authorize(client, params, getResponse.response);
+    assert.equal(getResponse.statusCode, 200);
+    assert.equal(getResponse.headers["cache-control"], "no-store");
+    assert.match(String(getResponse.headers["content-security-policy"]), /frame-ancestors 'none'/);
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const badResponse = createAuthorizationResponse(
+        "POST",
+        { owner_token: "wrong-owner-password" },
+        "203.0.113.10",
+      );
+      await provider.authorize(client, params, badResponse.response);
+      assert.equal(badResponse.statusCode, 401);
+    }
+
+    const lockedResponse = createAuthorizationResponse(
+      "POST",
+      { owner_token: "wrong-owner-password" },
+      "203.0.113.10",
+    );
+    await provider.authorize(client, params, lockedResponse.response);
+    assert.equal(lockedResponse.statusCode, 429);
+    assert.ok(lockedResponse.headers["retry-after"]);
+
+    const otherIpResponse = createAuthorizationResponse(
+      "POST",
+      { owner_token: oauthConfig.ownerToken },
+      "203.0.113.11",
+    );
+    await provider.authorize(client, params, otherIpResponse.response);
+    assert.equal(otherIpResponse.statusCode, 302);
+  } finally {
+    provider.close();
+  }
+}
+
+function createAuthorizationResponse(
+  method: "GET" | "POST",
+  body: Record<string, string>,
+  ip: string,
+): {
+  response: Response;
+  statusCode?: number;
+  headers: Record<string, string | number | readonly string[]>;
+  body?: string;
+  redirectUrl?: string;
+} {
+  const result: {
+    response?: Response;
+    statusCode?: number;
+    headers: Record<string, string | number | readonly string[]>;
+    body?: string;
+    redirectUrl?: string;
+  } = { headers: {} };
+
+  result.response = {
+    req: {
+      method,
+      originalUrl: "/authorize",
+      body,
+      ip,
+      socket: { remoteAddress: ip },
+    },
+    status(statusCode: number) {
+      result.statusCode = statusCode;
+      return this;
+    },
+    setHeader(name: string, value: string | number | readonly string[]) {
+      result.headers[name.toLowerCase()] = value;
+      return this;
+    },
+    send(bodyText: string) {
+      result.body = bodyText;
+      return this;
+    },
+    redirect(statusCode: number, url: string) {
+      result.statusCode = statusCode;
+      result.redirectUrl = url;
+      return this;
+    },
+  } as unknown as Response;
+
+  return result as {
+    response: Response;
+    statusCode?: number;
+    headers: Record<string, string | number | readonly string[]>;
+    body?: string;
+    redirectUrl?: string;
+  };
 }
 
 function hashToken(token: string): string {

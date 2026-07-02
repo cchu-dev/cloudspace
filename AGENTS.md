@@ -1,4 +1,4 @@
-# DevSpace
+# Cloudspace
 
 This project exposes a local development workspace over MCP so ChatGPT, Claude,
 or another MCP-capable host can operate directly on this machine's approved
@@ -9,7 +9,7 @@ should call tools that read files, edit files, search code, and run shell
 commands directly against approved local project roots.
 
 Pi's SDK is currently used as the backend adapter for mature local coding
-primitives such as read, edit, write, grep, find, ls, and bash. DevSpace wraps
+primitives such as read, edit, write, grep, find, ls, and bash. Cloudspace wraps
 those primitives behind a remote Streamable HTTP MCP interface, suitable for use
 through a Cloudflare Tunnel.
 
@@ -31,3 +31,9 @@ Core constraints:
 - Prefer explicit, inspectable tool calls over autonomous local agent loops.
 - Keep the first version small enough to validate with real ChatGPT/Claude MCP
   clients before adding UI or workflow features.
+
+## Local Environment Safety
+
+- Do not install Python packages into the host/global Python environment.
+- Do not run `pip install` outside a virtualenv or Docker container.
+- When searching the repository, start with: `rtk grep "SearchTerm"`. Only use rg if rtk grep fails or cannot express the search.
